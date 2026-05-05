@@ -1,0 +1,120 @@
+{
+  "id": "robins_i",
+  "name": "Risk Of Bias In Non-randomized Studies of Interventions (ROBINS-I)",
+  "applies_to": "Non-randomized studies of interventions (cohort-type)",
+  "level": "study",
+  "judgment_options": ["Low", "Moderate", "Serious", "Critical", "No information"],
+  "no_information_label": "No information",
+  "overall_judgment_rule": "The overall judgment is the highest level of bias judged for any individual domain (Critical > Serious > Moderate > Low). 'No information' overall if any key domain is 'No information' and no other domain is Serious/Critical.",
+  "domains": [
+    {
+      "id": "D1",
+      "name": "Bias due to confounding",
+      "retrieval_queries": [
+        "confounding variables baseline differences",
+        "adjustment for confounders propensity score",
+        "prognostic factors imbalance"
+      ],
+      "signaling_questions": [
+        "Is there potential for confounding of the effect of intervention in this study?",
+        "Was the analysis based on splitting participants' follow up time according to intervention received?",
+        "Were intervention discontinuations or switches likely to be related to factors that are prognostic for the outcome?",
+        "Did the authors use an appropriate analysis method that controlled for all the important confounding domains?"
+      ],
+      "criteria_summary": "Low: comparable to a well-conducted randomized trial. Moderate: confounding controlled for important factors but residual confounding plausible. Serious: at least one important confounder not controlled. Critical: confounding so severe the result is uninterpretable."
+    },
+    {
+      "id": "D2",
+      "name": "Bias in selection of participants into the study",
+      "retrieval_queries": [
+        "participant selection eligibility inclusion criteria",
+        "selection start of follow up intervention",
+        "post-intervention exclusions"
+      ],
+      "signaling_questions": [
+        "Was selection of participants into the study (or into the analysis) based on participant characteristics observed after the start of intervention?",
+        "Were the post-intervention variables that influenced selection likely to be associated with intervention?",
+        "Were the post-intervention variables that influenced selection likely to be influenced by the outcome?",
+        "Do start of follow-up and start of intervention coincide for most participants?"
+      ],
+      "criteria_summary": "Low: selection unrelated to intervention or outcome; follow-up starts at intervention. Moderate: minor selection issues. Serious: selection based on post-intervention characteristics related to intervention/outcome. Critical: selection so biased the result is uninterpretable."
+    },
+    {
+      "id": "D3",
+      "name": "Bias in classification of interventions",
+      "retrieval_queries": [
+        "intervention classification definition",
+        "exposure measurement ascertainment",
+        "intervention groups well defined"
+      ],
+      "signaling_questions": [
+        "Were intervention groups clearly defined?",
+        "Was the information used to define intervention groups recorded at the start of the intervention?",
+        "Could classification of intervention status have been affected by knowledge of the outcome or risk of the outcome?"
+      ],
+      "criteria_summary": "Low: groups well-defined; classification based on prospective records, not influenced by outcome. Moderate: minor misclassification possible but unlikely related to outcome. Serious: misclassification likely differential. Critical: classification scheme fundamentally flawed."
+    },
+    {
+      "id": "D4",
+      "name": "Bias due to deviations from intended interventions",
+      "retrieval_queries": [
+        "deviations from intended intervention protocol",
+        "intention to treat per protocol",
+        "co-interventions adherence"
+      ],
+      "signaling_questions": [
+        "Were there deviations from the intended intervention beyond what would be expected in usual practice?",
+        "Were these deviations from intended intervention unbalanced between groups and likely to have affected the outcome?",
+        "Was an appropriate analysis used to estimate the effect of starting and adhering to the intervention?"
+      ],
+      "criteria_summary": "Low: no important deviations from intended intervention. Moderate: deviations occurred but balanced between groups. Serious: unbalanced deviations likely affecting outcome. Critical: deviations so severe the comparison is meaningless."
+    },
+    {
+      "id": "D5",
+      "name": "Bias due to missing data",
+      "retrieval_queries": [
+        "missing data loss to follow up attrition",
+        "complete case analysis imputation",
+        "reasons for missing data"
+      ],
+      "signaling_questions": [
+        "Were outcome data available for all, or nearly all, participants?",
+        "Were participants excluded due to missing data on intervention status?",
+        "Were participants excluded due to missing data on other variables needed for the analysis?",
+        "Is there evidence that results were robust to the presence of missing data?"
+      ],
+      "criteria_summary": "Low: data available for nearly all participants OR robustness demonstrated. Moderate: moderate missingness with uncertain impact. Serious: missingness likely related to outcome. Critical: so much missingness the result is uninterpretable."
+    },
+    {
+      "id": "D6",
+      "name": "Bias in measurement of outcomes",
+      "retrieval_queries": [
+        "outcome measurement assessment method",
+        "outcome assessor blinding masking",
+        "differential measurement between groups"
+      ],
+      "signaling_questions": [
+        "Could the outcome measure have been influenced by knowledge of the intervention received?",
+        "Were outcome assessors aware of the intervention received by study participants?",
+        "Were the methods of outcome assessment comparable across intervention groups?",
+        "Were any systematic errors in measurement of the outcome related to intervention received?"
+      ],
+      "criteria_summary": "Low: methods comparable across groups; outcome objective or assessor blinded. Moderate: minor differences in measurement. Serious: differential measurement likely. Critical: measurement so biased the result is meaningless."
+    },
+    {
+      "id": "D7",
+      "name": "Bias in selection of the reported result",
+      "retrieval_queries": [
+        "pre-specified outcomes protocol registration",
+        "selective reporting outcomes analyses",
+        "multiple analyses subgroups"
+      ],
+      "signaling_questions": [
+        "Is the reported effect estimate likely to be selected, on the basis of the results, from multiple outcome measurements within the outcome domain?",
+        "Is the reported effect estimate likely to be selected, on the basis of the results, from multiple analyses of the intervention-outcome relationship?",
+        "Is the reported effect estimate likely to be selected, on the basis of the results, from different subgroups?"
+      ],
+      "criteria_summary": "Low: pre-specified protocol; no evidence of selective reporting. Moderate: protocol unavailable but no obvious selection. Serious: clear selective reporting. Critical: results clearly cherry-picked."
+    }
+  ]
+}

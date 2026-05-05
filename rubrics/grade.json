@@ -1,0 +1,136 @@
+{
+  "id": "grade",
+  "name": "GRADE (Grading of Recommendations, Assessment, Development and Evaluation)",
+  "applies_to": "Body of evidence for a specific outcome (across multiple studies)",
+  "level": "outcome",
+  "judgment_options": ["No serious concern", "Serious (-1)", "Very serious (-2)"],
+  "upgrade_options": ["Not applicable", "Large effect (+1)", "Very large effect (+2)", "Dose-response (+1)", "Plausible confounders reduce effect (+1)"],
+  "certainty_levels": ["High", "Moderate", "Low", "Very low"],
+  "starting_certainty": {
+    "rct": "High",
+    "non_rct": "Low"
+  },
+  "overall_judgment_rule": "Start at HIGH for RCT bodies, LOW for non-RCT bodies. Subtract 1-2 levels for each downgrade domain with serious/very serious concern. Add 1-2 levels for upgrade domains (rare for RCTs). Final cannot go below VERY LOW.",
+  "domains": [
+    {
+      "id": "G1",
+      "name": "Risk of Bias (across studies)",
+      "kind": "downgrade",
+      "retrieval_queries": [
+        "risk of bias randomization blinding",
+        "study quality methodological limitations",
+        "loss to follow up missing data outcomes"
+      ],
+      "signaling_questions": [
+        "Do most studies contributing to this outcome have low risk of bias?",
+        "Would removing high-RoB studies in a sensitivity analysis change the conclusion?"
+      ],
+      "criteria_summary": "No serious concern: most data from low-RoB studies. Serious: substantial portion from studies with concerns. Very serious: most data from high-RoB studies and result likely affected."
+    },
+    {
+      "id": "G2",
+      "name": "Inconsistency",
+      "kind": "downgrade",
+      "retrieval_queries": [
+        "heterogeneity I-squared between study variability",
+        "effect size direction across studies",
+        "subgroup analysis sources of heterogeneity"
+      ],
+      "signaling_questions": [
+        "Are point estimates similar across studies?",
+        "Do confidence intervals overlap substantially?",
+        "Is statistical heterogeneity (e.g., I^2) low?",
+        "Has heterogeneity, if present, been adequately explained by subgroup analysis?"
+      ],
+      "criteria_summary": "No serious concern: similar effects, overlapping CIs, low I^2. Serious: notable heterogeneity not fully explained. Very serious: results vary widely in direction and magnitude with no explanation."
+    },
+    {
+      "id": "G3",
+      "name": "Indirectness",
+      "kind": "downgrade",
+      "retrieval_queries": [
+        "study population intervention comparator outcome PICO",
+        "applicability generalizability target population",
+        "indirect comparison different setting"
+      ],
+      "signaling_questions": [
+        "Do the included studies directly match the population, intervention, comparator, and outcome of interest?",
+        "Are the outcomes measured surrogate or final?",
+        "Is there an indirect comparison (no head-to-head trials)?"
+      ],
+      "criteria_summary": "No serious concern: studies match the PICO of interest. Serious: meaningful differences in population, intervention, comparator, or outcome. Very serious: only indirect evidence available."
+    },
+    {
+      "id": "G4",
+      "name": "Imprecision",
+      "kind": "downgrade",
+      "retrieval_queries": [
+        "confidence interval width sample size",
+        "number of events optimal information size",
+        "statistical power"
+      ],
+      "signaling_questions": [
+        "Are confidence intervals narrow enough that the upper and lower bounds lead to the same clinical decision?",
+        "Is the total sample size and event count above the optimal information size?",
+        "Does the CI cross a threshold that would change the recommendation?"
+      ],
+      "criteria_summary": "No serious concern: CI narrow and on one side of clinical decision threshold. Serious: wide CI or low event count. Very serious: very wide CI crossing thresholds in opposing directions."
+    },
+    {
+      "id": "G5",
+      "name": "Publication bias",
+      "kind": "downgrade",
+      "retrieval_queries": [
+        "publication bias funnel plot",
+        "small study effects",
+        "trial registration unpublished studies"
+      ],
+      "signaling_questions": [
+        "Is there evidence of small-study effects (asymmetric funnel plot)?",
+        "Are most studies industry-sponsored with positive results?",
+        "Is there evidence of unpublished or selectively published studies?"
+      ],
+      "criteria_summary": "No serious concern: comprehensive search; no evidence of bias. Serious: suspected publication bias (e.g., funnel asymmetry). Very serious: strong evidence of selective publication."
+    },
+    {
+      "id": "U1",
+      "name": "Large magnitude of effect",
+      "kind": "upgrade",
+      "retrieval_queries": [
+        "effect size magnitude relative risk odds ratio",
+        "large treatment effect strong association"
+      ],
+      "signaling_questions": [
+        "Is the magnitude of effect large (e.g., RR > 2 or RR < 0.5) without plausible confounding?",
+        "Is the effect very large (e.g., RR > 5 or RR < 0.2)?"
+      ],
+      "criteria_summary": "Not applicable: effect modest. +1: large effect (RR>2 or <0.5). +2: very large effect (RR>5 or <0.2). Rarely applied to RCTs."
+    },
+    {
+      "id": "U2",
+      "name": "Dose-response gradient",
+      "kind": "upgrade",
+      "retrieval_queries": [
+        "dose response gradient exposure",
+        "dose dependent effect"
+      ],
+      "signaling_questions": [
+        "Is there a clear dose-response relationship between exposure/intervention intensity and outcome?"
+      ],
+      "criteria_summary": "Not applicable: no dose-response examined. +1: clear dose-response gradient supports causality."
+    },
+    {
+      "id": "U3",
+      "name": "Plausible confounding would reduce a demonstrated effect",
+      "kind": "upgrade",
+      "retrieval_queries": [
+        "residual confounding direction effect",
+        "unmeasured confounders bias"
+      ],
+      "signaling_questions": [
+        "Would all plausible residual confounders bias the effect toward the null (suggesting the true effect is even larger than observed)?"
+      ],
+      "criteria_summary": "Not applicable: confounders could go either way. +1: all plausible residual confounding would reduce the observed effect."
+    }
+  ]
+}

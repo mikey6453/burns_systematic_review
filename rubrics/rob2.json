@@ -1,0 +1,88 @@
+{
+  "id": "rob2",
+  "name": "Cochrane Risk of Bias 2 (RoB 2)",
+  "applies_to": "Randomized controlled trials (parallel-group)",
+  "level": "study",
+  "judgment_options": ["Low", "Some concerns", "High", "No information"],
+  "no_information_label": "No information",
+  "overall_judgment_rule": "Low only if every domain is Low. High if any domain is High. 'No information' for a domain is treated as Some concerns when computing the overall rating. Otherwise Some concerns.",
+  "domains": [
+    {
+      "id": "D1",
+      "name": "Bias arising from the randomization process",
+      "retrieval_queries": [
+        "randomization sequence generation method computer random number",
+        "allocation concealment sealed envelopes central allocation",
+        "baseline characteristics imbalance between groups"
+      ],
+      "signaling_questions": [
+        "Was the allocation sequence random?",
+        "Was the allocation sequence concealed until participants were enrolled and assigned to interventions?",
+        "Did baseline differences between intervention groups suggest a problem with the randomization process?"
+      ],
+      "criteria_summary": "Low: random sequence generated AND allocation concealed AND no concerning baseline imbalance. Some concerns: information missing on one or more items but no evidence of a problem. High: non-random sequence, broken allocation concealment, or baseline imbalances suggesting subverted randomization."
+    },
+    {
+      "id": "D2",
+      "name": "Bias due to deviations from intended interventions",
+      "retrieval_queries": [
+        "blinding participants providers personnel masking",
+        "deviations from intended intervention protocol",
+        "intention to treat per protocol analysis"
+      ],
+      "signaling_questions": [
+        "Were participants aware of their assigned intervention during the trial?",
+        "Were carers and people delivering the interventions aware of participants' assigned intervention?",
+        "Were there deviations from the intended intervention that arose because of the trial context?",
+        "Was an appropriate analysis used to estimate the effect of assignment to intervention?"
+      ],
+      "criteria_summary": "Low: blinded OR no deviations beyond what would happen in usual care, AND appropriate analysis (e.g., ITT). Some concerns: information unclear or possible minor deviations. High: known unblinded deviations affecting the outcome, or inappropriate analysis."
+    },
+    {
+      "id": "D3",
+      "name": "Bias due to missing outcome data",
+      "retrieval_queries": [
+        "loss to follow up missing outcome data attrition",
+        "imputation handling of missing data",
+        "reasons for missing data dropout"
+      ],
+      "signaling_questions": [
+        "Were data for this outcome available for all, or nearly all, participants randomized?",
+        "Is there evidence that the result was not biased by missing outcome data?",
+        "Could missingness in the outcome depend on its true value?"
+      ],
+      "criteria_summary": "Low: outcome data available for nearly all (>=95%) participants OR analysis adequately addresses missingness. Some concerns: moderate missingness with uncertain impact. High: substantial missingness likely related to the outcome value."
+    },
+    {
+      "id": "D4",
+      "name": "Bias in measurement of the outcome",
+      "retrieval_queries": [
+        "outcome assessment measurement method",
+        "outcome assessor blinding masking",
+        "objective subjective outcome measurement"
+      ],
+      "signaling_questions": [
+        "Was the method of measuring the outcome inappropriate?",
+        "Could measurement or ascertainment of the outcome have differed between intervention groups?",
+        "Were outcome assessors aware of the intervention received by study participants?",
+        "Could assessment of the outcome have been influenced by knowledge of intervention received?"
+      ],
+      "criteria_summary": "Low: appropriate measurement, same across groups, blinded assessors OR objective outcome unaffected by knowledge of group. Some concerns: assessor blinding unclear for subjective outcomes. High: assessor unblinded for subjective outcome, or differential measurement between groups."
+    },
+    {
+      "id": "D5",
+      "name": "Bias in selection of the reported result",
+      "retrieval_queries": [
+        "pre-specified outcomes protocol registration",
+        "multiple outcome measurements analyses",
+        "selective reporting outcomes"
+      ],
+      "signaling_questions": [
+        "Were the data analysed in accordance with a pre-specified analysis plan finalised before unblinded outcome data were available?",
+        "Is the reported outcome likely to have been selected from multiple measurements within the outcome domain?",
+        "Is the reported outcome likely to have been selected from multiple analyses of the data?"
+      ],
+      "criteria_summary": "Low: outcome and analysis pre-specified (registered protocol), no evidence of selective reporting. Some concerns: protocol unavailable but no obvious selective reporting. High: clear selective reporting from multiple measurements or analyses."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+.env
+.venv/
+qdrant_data/
+outputs/
+kb/
+__pycache__/
+*.pyc
+.DS_Store

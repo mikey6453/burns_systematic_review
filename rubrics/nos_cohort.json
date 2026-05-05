@@ -1,0 +1,124 @@
+{
+  "id": "nos_cohort",
+  "name": "Newcastle-Ottawa Quality Assessment Scale (Cohort Studies)",
+  "applies_to": "Observational cohort studies",
+  "level": "study",
+  "judgment_options": ["0 stars", "1 star", "2 stars"],
+  "no_information_label": "0 stars",
+  "overall_judgment_rule": "Sum stars across all items (max 9). AHRQ thresholds: Good = 3-4 selection AND 1-2 comparability AND 2-3 outcome stars; Fair = 2 selection AND 1-2 comparability AND 2-3 outcome; Poor = 0-1 selection OR 0 comparability OR 0-1 outcome.",
+  "domains": [
+    {
+      "id": "S1",
+      "name": "Selection: Representativeness of the exposed cohort",
+      "retrieval_queries": [
+        "study population sampling representativeness",
+        "exposed cohort recruitment source",
+        "consecutive enrollment community based"
+      ],
+      "signaling_questions": [
+        "How representative is the exposed cohort of the average target population (truly representative, somewhat representative, selected group, or no description)?"
+      ],
+      "criteria_summary": "1 star: truly representative of average target population (consecutive/random/community sample) OR somewhat representative. 0 stars: selected group OR no description.",
+      "max_stars": 1
+    },
+    {
+      "id": "S2",
+      "name": "Selection: Selection of the non-exposed cohort",
+      "retrieval_queries": [
+        "comparison group control unexposed cohort",
+        "non-exposed cohort source community",
+        "matched controls source population"
+      ],
+      "signaling_questions": [
+        "Was the non-exposed cohort drawn from the same community as the exposed cohort?"
+      ],
+      "criteria_summary": "1 star: drawn from the same community as the exposed cohort. 0 stars: drawn from a different source OR no description.",
+      "max_stars": 1
+    },
+    {
+      "id": "S3",
+      "name": "Selection: Ascertainment of exposure",
+      "retrieval_queries": [
+        "exposure ascertainment medical records",
+        "exposure measurement structured interview",
+        "self report exposure burn injury"
+      ],
+      "signaling_questions": [
+        "How was the exposure ascertained (secure record, structured interview, self-report, or no description)?"
+      ],
+      "criteria_summary": "1 star: secure record (e.g., surgical/medical record) OR structured interview. 0 stars: written self-report, no description, or other.",
+      "max_stars": 1
+    },
+    {
+      "id": "S4",
+      "name": "Selection: Demonstration that outcome of interest was not present at start of study",
+      "retrieval_queries": [
+        "outcome present at baseline exclusion",
+        "incident cases follow up",
+        "prior history of outcome at enrollment"
+      ],
+      "signaling_questions": [
+        "Was it demonstrated that the outcome of interest was not present at the start of the study?"
+      ],
+      "criteria_summary": "1 star: demonstrated outcome not present at baseline (e.g., participants free of outcome at enrollment). 0 stars: no such demonstration.",
+      "max_stars": 1
+    },
+    {
+      "id": "C1",
+      "name": "Comparability: Comparability of cohorts on the basis of design or analysis",
+      "retrieval_queries": [
+        "adjustment confounders age sex",
+        "matching design analysis confounding",
+        "multivariable regression covariates"
+      ],
+      "signaling_questions": [
+        "Did the study control for the most important confounder (e.g., age, sex)?",
+        "Did the study control for any additional important factors?"
+      ],
+      "criteria_summary": "1 star: controls for the most important confounder (e.g., age and sex). +1 additional star: controls for any other important factor (TBSA, comorbidities, etc.). 0 stars: cohorts not comparable.",
+      "max_stars": 2
+    },
+    {
+      "id": "O1",
+      "name": "Outcome: Assessment of outcome",
+      "retrieval_queries": [
+        "outcome assessment method blinded",
+        "outcome ascertainment record linkage",
+        "self reported outcome verification"
+      ],
+      "signaling_questions": [
+        "How was the outcome assessed (independent blind assessment, record linkage, self-report, or no description)?"
+      ],
+      "criteria_summary": "1 star: independent blind assessment OR record linkage. 0 stars: self-report, no description, or other.",
+      "max_stars": 1
+    },
+    {
+      "id": "O2",
+      "name": "Outcome: Was follow-up long enough for outcomes to occur",
+      "retrieval_queries": [
+        "follow up duration length time",
+        "median follow up time",
+        "long term outcome follow up"
+      ],
+      "signaling_questions": [
+        "Was follow-up long enough for outcomes to occur, given the typical latency of the outcome?"
+      ],
+      "criteria_summary": "1 star: follow-up sufficient for the outcome to plausibly occur (paper-specific judgment). 0 stars: too short.",
+      "max_stars": 1
+    },
+    {
+      "id": "O3",
+      "name": "Outcome: Adequacy of follow-up of cohorts",
+      "retrieval_queries": [
+        "loss to follow up complete attrition",
+        "subjects lost to follow up percentage",
+        "follow up rate completeness"
+      ],
+      "signaling_questions": [
+        "Was follow-up of cohorts complete (all accounted for, lost <=20% with description, lost >20%, or no statement)?"
+      ],
+      "criteria_summary": "1 star: complete follow-up OR loss <=20% with description showing those lost are not different. 0 stars: loss >20% with no description, or no statement.",
+      "max_stars": 1
+    }
+  ]
+}

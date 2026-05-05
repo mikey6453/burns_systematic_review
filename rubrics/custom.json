@@ -1,0 +1,25 @@
+{
+  "id": "custom",
+  "name": "Custom rubric (template — edit me)",
+  "applies_to": "Whatever you specify",
+  "level": "study",
+  "judgment_options": ["Low", "Moderate", "High", "No information"],
+  "no_information_label": "No information",
+  "overall_judgment_rule": "Define how domain judgments combine into an overall rating.",
+  "domains": [
+    {
+      "id": "C1",
+      "name": "Example domain — replace this",
+      "retrieval_queries": [
+        "keywords that should pull relevant chunks for this domain",
+        "synonyms or related concepts",
+        "specific terminology from the rubric"
+      ],
+      "signaling_questions": [
+        "Question 1 the LLM should answer when judging this domain.",
+        "Question 2."
+      ],
+      "criteria_summary": "Low: ... . Moderate: ... . High: ... . Be specific so the LLM can apply this consistently across runs."
+    }
+  ]
+}
