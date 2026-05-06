@@ -19,7 +19,8 @@
         "How representative is the exposed cohort of the average target population (truly representative, somewhat representative, selected group, or no description)?"
       ],
       "criteria_summary": "1 star: truly representative of average target population (consecutive/random/community sample) OR somewhat representative. 0 stars: selected group OR no description.",
-      "max_stars": 1
+      "max_stars": 1,
+      "judgment_options": ["0 stars", "1 star"]
     },
     {
       "id": "S2",
@@ -33,7 +34,8 @@
         "Was the non-exposed cohort drawn from the same community as the exposed cohort?"
       ],
       "criteria_summary": "1 star: drawn from the same community as the exposed cohort. 0 stars: drawn from a different source OR no description.",
-      "max_stars": 1
+      "max_stars": 1,
+      "judgment_options": ["0 stars", "1 star"]
     },
     {
       "id": "S3",
@@ -47,7 +49,8 @@
         "How was the exposure ascertained (secure record, structured interview, self-report, or no description)?"
       ],
       "criteria_summary": "1 star: secure record (e.g., surgical/medical record) OR structured interview. 0 stars: written self-report, no description, or other.",
-      "max_stars": 1
+      "max_stars": 1,
+      "judgment_options": ["0 stars", "1 star"]
     },
     {
       "id": "S4",
@@ -61,7 +64,8 @@
         "Was it demonstrated that the outcome of interest was not present at the start of the study?"
       ],
       "criteria_summary": "1 star: demonstrated outcome not present at baseline (e.g., participants free of outcome at enrollment). 0 stars: no such demonstration.",
-      "max_stars": 1
+      "max_stars": 1,
+      "judgment_options": ["0 stars", "1 star"]
     },
     {
       "id": "C1",
@@ -90,7 +94,8 @@
         "How was the outcome assessed (independent blind assessment, record linkage, self-report, or no description)?"
       ],
       "criteria_summary": "1 star: independent blind assessment OR record linkage. 0 stars: self-report, no description, or other.",
-      "max_stars": 1
+      "max_stars": 1,
+      "judgment_options": ["0 stars", "1 star"]
     },
     {
       "id": "O2",
@@ -104,7 +109,8 @@
         "Was follow-up long enough for outcomes to occur, given the typical latency of the outcome?"
       ],
       "criteria_summary": "1 star: follow-up sufficient for the outcome to plausibly occur (paper-specific judgment). 0 stars: too short.",
-      "max_stars": 1
+      "max_stars": 1,
+      "judgment_options": ["0 stars", "1 star"]
     },
     {
       "id": "O3",
@@ -118,7 +124,8 @@
         "Was follow-up of cohorts complete (all accounted for, lost <=20% with description, lost >20%, or no statement)?"
       ],
       "criteria_summary": "1 star: complete follow-up OR loss <=20% with description showing those lost are not different. 0 stars: loss >20% with no description, or no statement.",
-      "max_stars": 1
+      "max_stars": 1,
+      "judgment_options": ["0 stars", "1 star"]
     }
   ]
 }

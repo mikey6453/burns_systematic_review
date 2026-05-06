@@ -39,6 +39,15 @@ COLOR = {
     "Moderate":         "#f0ad4e",
     "Serious":          "#d9534f",
     "Critical":         "#8b0000",   # dark red
+    # Newcastle-Ottawa star ratings (higher is better — opposite polarity).
+    "0 stars":          "#d9534f",   # red — worst
+    "1 star":           "#5cb85c",   # green — got the star
+    "2 stars":          "#3d8b3d",   # darker green — got both stars (Comparability)
+    # JBI Case-series checklist (Yes is good, No is bad).
+    "Yes":              "#5cb85c",
+    "No":               "#d9534f",
+    "Unclear":          "#f0ad4e",
+    "Not applicable":   "#cccccc",
 }
 SYMBOL = {
     "Low":              "+",
@@ -48,6 +57,13 @@ SYMBOL = {
     "Moderate":         "-",
     "Serious":          "X",
     "Critical":         "X",
+    "0 stars":          "0",
+    "1 star":           "1",
+    "2 stars":          "2",
+    "Yes":              "Y",
+    "No":               "N",
+    "Unclear":          "?",
+    "Not applicable":   "-",
 }
 
 # Severity order — used to compute the overall rating (worst-of) per study.
@@ -59,7 +75,22 @@ SEVERITY = {
     "High": 3,
     "Serious": 3,
     "Critical": 4,
+    # NOS: star count is the inverse of severity (more stars = better study).
+    "2 stars": 0,
+    "1 star":  0,
+    "0 stars": 3,
+    # Case-series: Yes is good (low severity), No/Unclear are bad.
+    "Yes":              0,
+    "No":               3,
+    "Unclear":          1,
+    "Not applicable":   0,
 }
+
+
+def _short_name(name: str) -> str:
+    """Trim redundant section prefixes like 'Selection: ' from NOS domain names."""
+    parts = name.split(":", 1)
+    return parts[1].strip() if len(parts) == 2 and len(parts[1]) > 4 else name
 
 
 def overall_rating(judgments: list[str]) -> str:
@@ -95,46 +126,70 @@ def build_grid(rows: list[dict]):
     return list(studies.keys()), list(domains.keys()), domains, grid
 
 
-def shorten(name: str, n: int = 36) -> str:
+def shorten(name: str, n: int = 24) -> str:
     return name if len(name) <= n else name[: n - 3] + "..."
 
 
-def plot(rows: list[dict], rubric_id: str, out_path: Path, show: bool = False):
+def _legend_for_rubric(rubric_id: str) -> list[tuple[str, str]]:
+    """Pick the legend entries appropriate for the rubric's judgment scale."""
+    if rubric_id == "nos_cohort":
+        return [("2 stars", "2"), ("1 star", "1"), ("0 stars", "0")]
+    if rubric_id == "robins_i":
+        return [("Critical", "X"), ("Serious", "X"), ("Moderate", "-"),
+                ("Low", "+"), ("No information", "?")]
+    if rubric_id == "case_series":
+        return [("Yes", "Y"), ("No", "N"), ("Unclear", "?"), ("Not applicable", "-")]
+    # rob2 / custom default
+    return [("High", "X"), ("Some concerns", "-"), ("Low", "+"), ("No information", "?")]
+
+
+def plot(rows: list[dict], rubric_id: str, out_path: Path | None = None,
+         show: bool = False, return_fig: bool = False):
     studies, domain_ids, domain_names, grid = build_grid(rows)
-    cols = domain_ids + ["Overall"]
 
     n_studies = len(studies)
-    n_cols = len(cols)
+    n_dom = len(domain_ids)
+    legend_items = _legend_for_rubric(rubric_id)
 
     # Geometry
     cell = 0.85          # cell side in inches
-    label_w = 3.4        # left-side study-label column width
-    legend_h = 1.6       # space below the matrix for legend + domain key
+    label_w = 4.6        # widened so long filenames don't bleed into cells
+    overall_gap = 0.7    # extra horizontal gap before the Overall column
+    # Column x-positions: domain columns at 0..n_dom-1, Overall to the right with a gap.
+    domain_xs = list(range(n_dom))
+    overall_x = n_dom - 1 + overall_gap + 1   # last domain index + gap + 1 cell
+    col_xs = domain_xs + [overall_x]
+    cols = domain_ids + ["Overall"]
 
-    fig_w = label_w + n_cols * cell + 0.5
-    fig_h = 1.0 + n_studies * cell + legend_h
+    # Bottom area: domain key (one row per domain) THEN legend (one row per item).
+    line_h = 0.4
+    key_lines = 1 + n_dom
+    legend_lines = 1 + len(legend_items)
+    bottom_h = (key_lines + legend_lines + 2) * line_h
+
+    fig_w = label_w + (overall_x + 1.0) * cell + 0.5
+    fig_h = max(4.5, 1.0 + n_studies * cell + bottom_h)
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
 
-    # Coordinate system: each cell centered at integer (col, row).
-    ax.set_xlim(-1, n_cols)
-    ax.set_ylim(-(n_studies + 1), legend_h + 0.5)
+    ax.set_xlim(-label_w / cell, overall_x + 1.0)
+    ax.set_ylim(-(n_studies + key_lines + legend_lines + 3), 1.5)
     ax.set_aspect("equal")
     ax.axis("off")
 
-    # Header strip background
-    ax.add_patch(patches.Rectangle((-0.5, 0.0), n_cols, 0.9,
+    # Header strip background — extends across all columns including the Overall gap.
+    header_w = overall_x + 1.0
+    ax.add_patch(patches.Rectangle((-0.5, 0.0), header_w, 0.9,
                                    facecolor="#dcdcdc", edgecolor="black", linewidth=0.5))
-    ax.text((n_cols - 1) / 2, 1.3, "Risk of bias domains",
+    ax.text((header_w - 1) / 2, 1.3, "Risk of bias domains",
             fontsize=12, fontweight="bold", ha="center")
 
     # Column headers
     for j, col in enumerate(cols):
-        ax.text(j, 0.45, col, fontsize=10, ha="center", va="center", fontweight="bold")
+        ax.text(col_xs[j], 0.45, col, fontsize=10, ha="center", va="center", fontweight="bold")
 
     # Plot each row
     for i, paper in enumerate(studies):
         y = -(i + 1)
-        # Study label background (matches reference image style)
         ax.add_patch(patches.Rectangle((-label_w + 0.4, y - 0.45), label_w - 0.4, 0.9,
                                        facecolor="#dcdcdc", edgecolor="black", linewidth=0.5))
         ax.text(-label_w + 0.55, y, shorten(paper), fontsize=8, va="center", ha="left")
@@ -143,55 +198,68 @@ def plot(rows: list[dict], rubric_id: str, out_path: Path, show: bool = False):
         for j, col in enumerate(cols):
             if col == "Overall":
                 judgment = overall_rating(domain_judgments)
-                agreement = ""
                 flagged = False
             else:
-                judgment, agreement, flagged = grid.get(
+                judgment, _agreement, flagged = grid.get(
                     (paper, col), ("No information", "0/0", False)
                 )
                 domain_judgments.append(judgment)
 
             color = COLOR.get(judgment, "#cccccc")
             sym = SYMBOL.get(judgment, "?")
-            edge = "black" if not flagged else "#7a0010"  # darker outline if flagged
+            edge = "black" if not flagged else "#7a0010"
             lw = 1.0 if not flagged else 2.5
 
-            circ = patches.Circle((j, y), 0.36, facecolor=color, edgecolor=edge, linewidth=lw)
+            circ = patches.Circle((col_xs[j], y), 0.36, facecolor=color,
+                                  edgecolor=edge, linewidth=lw)
             ax.add_patch(circ)
-            ax.text(j, y, sym, fontsize=14, ha="center", va="center",
+            ax.text(col_xs[j], y, sym, fontsize=14, ha="center", va="center",
                     color="white", fontweight="bold")
 
-    # Vertical separator before Overall column (matches RoB 2 convention).
-    sep_x = n_cols - 1.5
+    # Vertical separator between the domain columns and the Overall column.
+    sep_x = (n_dom - 1 + overall_x) / 2
     ax.plot([sep_x, sep_x], [-(n_studies + 0.5), 0.9],
             color="black", linewidth=0.8)
 
-    # Domains key (bottom-left)
-    key_y = -(n_studies + 1.1)
-    ax.text(-label_w + 0.4, key_y, "Domains:", fontsize=9, fontweight="bold", va="top")
-    for k, did in enumerate(domain_ids):
-        ax.text(-label_w + 0.4, key_y - 0.35 * (k + 1),
-                f"{did}: {domain_names[did]}", fontsize=8, va="top")
+    # --- Bottom area: domain key + legend, stacked vertically (full-width) ---
+    bottom_x = -label_w + 0.4
+    cursor = -(n_studies + 1.0)
 
-    # Legend (bottom-right)
-    legend_x = n_cols - 1.4
-    ax.text(legend_x, key_y, "Judgement", fontsize=9, fontweight="bold", va="top")
-    legend_items = [("High", "X"), ("Some concerns", "-"), ("Low", "+"), ("No information", "?")]
-    for k, (label, sym) in enumerate(legend_items):
-        cy = key_y - 0.35 * (k + 1)
-        ax.add_patch(patches.Circle((legend_x, cy), 0.18,
-                                     facecolor=COLOR[label], edgecolor="black", linewidth=0.8))
-        ax.text(legend_x, cy, sym, fontsize=9, ha="center", va="center",
+    # Domains key
+    ax.text(bottom_x, cursor, "Domains:", fontsize=10, fontweight="bold", va="top")
+    cursor -= line_h
+    for did in domain_ids:
+        ax.text(bottom_x, cursor, f"{did}: {_short_name(domain_names[did])}",
+                fontsize=9, va="top")
+        cursor -= line_h
+
+    # Spacing between sections
+    cursor -= line_h
+
+    # Judgement legend (vertical list, full row width)
+    ax.text(bottom_x, cursor, "Judgement", fontsize=10, fontweight="bold", va="top")
+    cursor -= line_h
+    for label, sym in legend_items:
+        cy = cursor - 0.18
+        ax.add_patch(patches.Circle((bottom_x + 0.18, cy), 0.18,
+                                     facecolor=COLOR.get(label, "#cccccc"),
+                                     edgecolor="black", linewidth=0.8))
+        ax.text(bottom_x + 0.18, cy, sym, fontsize=9, ha="center", va="center",
                 color="white", fontweight="bold")
-        ax.text(legend_x + 0.35, cy, label, fontsize=8, va="center")
+        ax.text(bottom_x + 0.55, cy, label, fontsize=9, va="center")
+        cursor -= line_h
 
     plt.tight_layout()
-    out_path.parent.mkdir(exist_ok=True)
-    plt.savefig(out_path, dpi=160, bbox_inches="tight", facecolor="white")
-    print(f"Saved {out_path} ({n_studies} studies × {len(domain_ids)} domains)")
+    if out_path is not None:
+        out_path.parent.mkdir(exist_ok=True)
+        plt.savefig(out_path, dpi=160, bbox_inches="tight", facecolor="white")
+        print(f"Saved {out_path} ({n_studies} studies × {len(domain_ids)} domains)")
     if show:
         plt.show()
+    if return_fig:
+        return fig
     plt.close(fig)
+    return None
 
 
 def main():

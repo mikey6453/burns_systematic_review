@@ -1,0 +1,141 @@
+{
+  "id": "case_series",
+  "name": "JBI Critical Appraisal Checklist for Case Series",
+  "applies_to": "Case series and single-arm descriptive studies (no comparison group)",
+  "level": "study",
+  "judgment_options": ["Yes", "No", "Unclear", "Not applicable"],
+  "no_information_label": "Unclear",
+  "overall_judgment_rule": "Count 'Yes' responses across the 10 items. >=7 Yes = High quality; 4-6 = Moderate; <=3 = Low.",
+  "domains": [
+    {
+      "id": "Q1",
+      "name": "Clear criteria for inclusion in the case series",
+      "retrieval_queries": [
+        "inclusion criteria study population",
+        "patient selection eligibility",
+        "criteria defined participants enrolled"
+      ],
+      "signaling_questions": [
+        "Were the inclusion criteria for the case series clearly defined and reported?"
+      ],
+      "criteria_summary": "Yes: explicit, well-defined inclusion criteria stated. No: no criteria described. Unclear: vague or partial criteria."
+    },
+    {
+      "id": "Q2",
+      "name": "Condition measured in a standard, reliable way for all participants",
+      "retrieval_queries": [
+        "diagnosis condition measurement standard",
+        "clinical assessment classification criteria",
+        "diagnostic criteria definition"
+      ],
+      "signaling_questions": [
+        "Was the condition (e.g., burn type/depth) measured in a standardized way across all participants?"
+      ],
+      "criteria_summary": "Yes: standardized clinical assessment used. No: variable or undefined methods. Unclear: not described."
+    },
+    {
+      "id": "Q3",
+      "name": "Valid methods used for identification of the condition",
+      "retrieval_queries": [
+        "case ascertainment identification method",
+        "data source records registry",
+        "case finding diagnosis verification"
+      ],
+      "signaling_questions": [
+        "Were valid methods (e.g., medical records, registry data, clinical examination) used to identify cases?"
+      ],
+      "criteria_summary": "Yes: valid case ascertainment described (records, registries, exams). No: invalid or unclear methods. Unclear: not described."
+    },
+    {
+      "id": "Q4",
+      "name": "Consecutive inclusion of participants",
+      "retrieval_queries": [
+        "consecutive patients enrollment",
+        "all eligible participants included",
+        "non-selected sample"
+      ],
+      "signaling_questions": [
+        "Did the case series include consecutive participants (or otherwise avoid selective sampling)?"
+      ],
+      "criteria_summary": "Yes: consecutive enrollment stated, or all eligible included. No: selective sampling. Unclear: not described."
+    },
+    {
+      "id": "Q5",
+      "name": "Complete inclusion of participants",
+      "retrieval_queries": [
+        "complete inclusion all participants",
+        "exclusions reasons missing",
+        "study sample completeness"
+      ],
+      "signaling_questions": [
+        "Did the case series include all eligible participants from the source population, with reasons for exclusions documented?"
+      ],
+      "criteria_summary": "Yes: all eligible included or exclusions clearly justified. No: significant unexplained exclusions. Unclear: not addressed."
+    },
+    {
+      "id": "Q6",
+      "name": "Clear reporting of demographics",
+      "retrieval_queries": [
+        "demographics age sex gender characteristics",
+        "patient characteristics baseline",
+        "study sample description"
+      ],
+      "signaling_questions": [
+        "Were demographic characteristics (age, sex, etc.) of participants clearly reported?"
+      ],
+      "criteria_summary": "Yes: demographics clearly tabulated/reported. No: demographics absent. Unclear: minimal or partial reporting."
+    },
+    {
+      "id": "Q7",
+      "name": "Clear reporting of clinical information",
+      "retrieval_queries": [
+        "clinical information presentation",
+        "burn characteristics severity TBSA",
+        "injury details location mechanism"
+      ],
+      "signaling_questions": [
+        "Was clinical information about each case (presentation, severity, mechanism) clearly reported?"
+      ],
+      "criteria_summary": "Yes: detailed clinical information reported. No: clinical details absent. Unclear: limited reporting."
+    },
+    {
+      "id": "Q8",
+      "name": "Clear reporting of outcomes or follow-up results",
+      "retrieval_queries": [
+        "outcomes results follow up",
+        "mortality healing complications",
+        "outcome measurement reported"
+      ],
+      "signaling_questions": [
+        "Were outcomes (e.g., mortality, healing, complications) clearly reported for participants?"
+      ],
+      "criteria_summary": "Yes: outcomes clearly reported with denominators. No: outcomes not reported or unclear. Unclear: partial reporting."
+    },
+    {
+      "id": "Q9",
+      "name": "Clear reporting of presenting site(s) / clinic demographic information",
+      "retrieval_queries": [
+        "study setting hospital clinic location",
+        "single center multicenter site",
+        "geographic location demographics"
+      ],
+      "signaling_questions": [
+        "Were the presenting site(s) or clinic(s) and their demographic catchment clearly described?"
+      ],
+      "criteria_summary": "Yes: site type, location, and catchment described. No: setting unclear. Unclear: minimal site information."
+    },
+    {
+      "id": "Q10",
+      "name": "Appropriate statistical analysis",
+      "retrieval_queries": [
+        "statistical analysis methods software",
+        "descriptive statistics",
+        "data analysis approach"
+      ],
+      "signaling_questions": [
+        "Was the statistical analysis appropriate for the descriptive nature of the study (e.g., descriptive statistics, frequencies)?"
+      ],
+      "criteria_summary": "Yes: appropriate descriptive statistics used. No: inappropriate analysis. Unclear: methods not described. Not applicable: no analysis performed."
+    }
+  ]
+}

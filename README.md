@@ -56,6 +56,24 @@ grade.py     ──►  Pick outcome ──►  Cross-corpus retrieval + per-stu
 - **LLM**: OpenAI `gpt-4o-mini`
 - **Appraisal output**: structured JSON via Pydantic + `with_structured_output`
 
+## Web UI
+
+A 3-page Streamlit frontend wraps the same pipeline:
+
+```powershell
+streamlit run app.py
+```
+
+Opens at http://localhost:8501.
+
+| Page | What it does |
+|---|---|
+| **Query** | Grounded Q&A over the corpus or appraisal index. Same verification logic as `query.py` (verbatim quotes only, refused answers if the corpus doesn't support them). |
+| **Appraise** | The full multi-step workflow: pick papers (existing corpus or upload PDFs), pick rubric (auto-detect with override, or apply one to all, or upload a custom JSON rubric), run multi-run grading with live progress, view a traffic-light plot, and adjudicate flagged disagreements via tie-breaker UI. |
+| **GRADE** | Body-of-evidence GRADE for an outcome — same pipeline as `grade.py` but with sliders, drill-down expanders, and a color-coded final-certainty banner. |
+
+Adjudicated CSVs are downloadable from the Appraise page; Streamlit caches the Qdrant connection so reloads are instant.
+
 ## Setup
 
 Requires Python 3.10+ (3.12 recommended; 3.14 works if all wheels are available).
@@ -186,12 +204,18 @@ GRADE is outcome-level, not paper-level. The pipeline:
 
 | File | Purpose |
 |---|---|
-| `ingest.py` | Load PDFs, chunk, embed, store in `burns_papers`. `--force` to rebuild. |
+| `app.py` | Streamlit landing page. Run with `streamlit run app.py`. |
+| `pages/1_Query.py` | Web UI for grounded Q&A. |
+| `pages/2_Appraise.py` | Web UI for the full appraisal workflow (upload → rubric pick → grade → adjudicate). |
+| `pages/3_GRADE.py` | Web UI for body-of-evidence GRADE. |
+| `ingest.py` | Load PDFs, chunk, embed, store in `burns_papers`. `--force` to rebuild. Also exposes `ingest_files()` for incremental ingest from the UI. |
 | `query.py` | Interactive CLI. `--collection papers` (default) or `--collection appraisals`. |
 | `appraise.py` | Per-paper rubric grading (RoB 2 / ROBINS-I / NOS / custom). Multi-run + verified evidence. |
 | `grade.py` | Body-of-evidence GRADE for a specific outcome. Reuses `appraisals.csv` for G1. |
+| `visualize.py` | Generate a Cochrane-style traffic-light PNG from `appraisals.csv`. |
 | `rubrics/` | JSON definitions of each rubric. Add a custom rubric by dropping a file here. |
 | `outputs/` | Per-paper JSONs + `appraisals.csv` + `appraisals_summary.csv` + GRADE outputs (gitignored). |
+| `kb/` | The PDF corpus (gitignored). |
 | `qdrant_data/` | Local Qdrant indices: `burns_papers` + `burns_appraisals` (gitignored). |
 | `requirements.txt` | Python deps. |
 | `.env.example` | Config template. Copy to `.env` and edit. |

@@ -61,6 +61,73 @@ def load_pdfs(kb_path: str):
         yield pages
 
 
+def ingest_files(paths, env, progress_cb=None) -> dict:
+    """Incrementally ingest a list of PDF paths into the existing collection.
+
+    Skips files whose `source` (basename) is already indexed. Returns a summary
+    dict {ingested: [filenames], skipped: [filenames], chunks: int}.
+
+    progress_cb(stage, payload) is called at:
+        ("file_start", {"path", "index", "total"})
+        ("file_done",  {"path", "pages", "chunks"})
+        ("file_skip",  {"path", "reason"})
+    """
+    client = QdrantClient(path=env["qdrant_path"])
+    if not client.collection_exists(env["collection"]):
+        client.create_collection(
+            collection_name=env["collection"],
+            vectors_config=VectorParams(size=EMBED_DIM, distance=Distance.COSINE),
+        )
+    embeddings = OpenAIEmbeddings(model=env["embed_model"])
+    vector_store = QdrantVectorStore(
+        client=client, collection_name=env["collection"], embedding=embeddings
+    )
+    splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
+
+    # Enumerate already-indexed source filenames to skip duplicates.
+    indexed = set()
+    next_offset = None
+    while True:
+        points, next_offset = client.scroll(
+            collection_name=env["collection"], limit=1000, offset=next_offset, with_payload=True,
+        )
+        for p in points:
+            md = (p.payload or {}).get("metadata", {})
+            if "source" in md:
+                indexed.add(md["source"])
+        if next_offset is None:
+            break
+
+    ingested, skipped, total_chunks = [], [], 0
+    paths = [Path(p) for p in paths]
+    for i, path in enumerate(paths):
+        if progress_cb:
+            progress_cb("file_start", {"path": path, "index": i, "total": len(paths)})
+        if path.name in indexed:
+            skipped.append(path.name)
+            if progress_cb:
+                progress_cb("file_skip", {"path": path, "reason": "already indexed"})
+            continue
+        try:
+            pages = PyPDFLoader(str(path)).load()
+        except Exception as e:
+            skipped.append(path.name)
+            if progress_cb:
+                progress_cb("file_skip", {"path": path, "reason": str(e)})
+            continue
+        for p in pages:
+            p.metadata["source"] = path.name
+            p.metadata["page"] = p.metadata.get("page", 0) + 1
+        chunks = splitter.split_documents(pages)
+        if chunks:
+            vector_store.add_documents(chunks)
+            total_chunks += len(chunks)
+        ingested.append(path.name)
+        if progress_cb:
+            progress_cb("file_done", {"path": path, "pages": len(pages), "chunks": len(chunks)})
+    return {"ingested": ingested, "skipped": skipped, "chunks": total_chunks}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Ingest PDFs into Qdrant.")
     parser.add_argument("--force", action="store_true", help="Delete existing collection and re-ingest")

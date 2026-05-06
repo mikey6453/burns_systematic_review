@@ -7,3 +7,5 @@ pypdf>=5.0
 pydantic>=2.0
 python-dotenv>=1.0
 matplotlib>=3.8
+streamlit>=1.30
+pandas>=2.0

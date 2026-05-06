@@ -84,15 +84,45 @@ STRICT RULES — these prevent fabrication. Violating any of them is a failure:
 2. Every numeric value, percentage, named entity, or specific term in your
    `answer` MUST appear verbatim in one of the quotes in `citations`. If you
    cannot back a claim with an exact quote, do not make the claim.
-3. Each citation must be a phrase or sentence copied EXACTLY from an excerpt.
-   No paraphrasing. No ellipses. No splicing fragments from different excerpts.
+3. Each citation must be a phrase or sentence copied EXACTLY from the BODY of
+   an excerpt. The body is everything BELOW the [filename.pdf p.N] header line.
+   - DO NOT include the [filename.pdf p.N] tag inside the citation string.
+     The bracket header is a label I added to identify the chunk; it is not
+     part of the source text. If you put it in `citations`, the quote will
+     fail verification.
+   - Cite a CONTIGUOUS span of at least 10–15 words that includes the claim
+     plus enough surrounding context to be uniquely identifiable in the source.
+     Bare number-and-unit fragments like "69.1 days" or "31 days" are
+     forbidden — they are too short to verify and could match anything.
+   - No paraphrasing. No ellipses. No splicing fragments from different
+     excerpts. Copy a contiguous span of words from a single excerpt.
 4. If a number appears in an excerpt without a clear label (e.g., a percentage
    in a table cell), do NOT invent a label for it. Quote what the excerpt says
    verbatim and describe it in the words of the excerpt.
-5. If the excerpts do NOT directly address the question, set refused=true and
-   explain briefly. Refusing is the CORRECT response when evidence is absent.
-6. Inline-cite each claim with the [filename.pdf p.N] tag from the excerpt header.
+5. Only set refused=true when the excerpts contain NO usable information on
+   the topic at all. If the excerpts contain RELATED information that doesn't
+   exactly match the question's framing (e.g., the question asks about
+   "severe burns" but the corpus reports across all burns or stratifies by
+   TBSA without labeling "severe"), DO answer with the available data and
+   note the framing limitation in 1-2 sentences. Helpful partial answers
+   beat refusals when the evidence merely uses different terminology.
+   Example response when corpus is broader than the question:
+     "The corpus reports average hospital stays of [X] days [quote+cite]
+      and [Y] days [quote+cite], though most studies cover all burn
+      patients rather than isolating a 'severe burn' subgroup specifically."
+6. Inline-cite each claim in the `answer` field with the [filename.pdf p.N] tag
+   from the excerpt header. (Inline tags in the prose are encouraged; just keep
+   them OUT of the `citations` strings.)
 7. Be concise. 2-5 sentences.
+
+Example of CORRECT citation entry:
+    "scalds were the most common cause of burn injury (49.8%)"
+Examples of INCORRECT citation entries (will fail verification):
+    "scalds were the most common cause of burn injury (49.8%) [foo.pdf p.5]"
+        ↑ never include the bracket header inside the quote
+    "69.1 days"
+        ↑ too short / no context — quote the full clause:
+        "the average length of hospital stay was 69.1 days"
 """.strip()
 
 SYSTEM_PROMPTS = {
@@ -119,7 +149,11 @@ def get_env():
         "papers_collection": os.environ.get("COLLECTION_NAME", "burns_papers"),
         "appraisals_collection": os.environ.get("APPRAISALS_COLLECTION", "burns_appraisals"),
         "embed_model": os.environ.get("EMBED_MODEL", "text-embedding-3-small"),
-        "llm_model": os.environ.get("LLM_MODEL", "gpt-4o-mini"),
+        # Reranker stays on the cheap model (high call volume on long sessions).
+        "rerank_model": os.environ.get("LLM_MODEL", "gpt-4o-mini"),
+        # Answer generator uses the bigger model so verbatim-quote instructions
+        # are followed reliably and we rarely reject grounded answers.
+        "answer_model": os.environ.get("QUERY_MODEL", "gpt-4o"),
     }
 
 
@@ -133,22 +167,31 @@ def format_docs(docs: list[Document]) -> str:
 
 # --- Verification (the trust mechanism) ---
 
-def verify_citations(citations: list[str], docs: list[Document]) -> tuple[list[dict], list[str]]:
+_MIN_VERIFY_LEN = 12  # mirrors locate_quote's minimum
+
+def verify_citations(citations: list[str], docs: list[Document]) -> tuple[list[dict], list[dict]]:
     """Check each cited quote is a substring of one of the retrieved chunks.
 
-    Returns (verified, unverified). Each verified entry has the source filename
-    and page taken from the matching chunk's metadata — never from the LLM.
+    Returns (verified, unverified). Verified entries have source + page from
+    the matching chunk's metadata. Unverified entries carry a `reason`:
+        "too_short"  — quote is below the minimum length to be uniquely identifiable
+        "not_found"  — quote is long enough but does not appear in the chunks
+    The two reasons reflect very different problems (insufficient context vs.
+    likely fabrication) and the UI surfaces them differently.
     """
     verified: list[dict] = []
-    unverified: list[str] = []
+    unverified: list[dict] = []
     for q in citations:
-        if not q.strip():
+        q = q.strip()
+        if not q:
+            continue
+        if len(q) < _MIN_VERIFY_LEN:
+            unverified.append({"quote": q, "reason": "too_short"})
             continue
         page, ok = locate_quote(q, docs)
         if not ok:
-            unverified.append(q)
+            unverified.append({"quote": q, "reason": "not_found"})
             continue
-        # Find the source filename of the matching chunk.
         needle = _normalize(q)
         source = "?"
         for d in docs:
@@ -160,10 +203,15 @@ def verify_citations(citations: list[str], docs: list[Document]) -> tuple[list[d
 
 
 _NUM_RE = re.compile(r"\d+(?:\.\d+)?")
+# Strip inline citation tags (e.g., "[paper-13.pdf p.8]") from the answer before
+# extracting numbers — those digits are metadata I asked the LLM to include,
+# not factual claims, so they shouldn't trigger the unsupported-number warning.
+_INLINE_TAG_RE = re.compile(r"\[[^\[\]]*\.(?:pdf|PDF)[^\[\]]*\]")
 
 
 def numbers_unsupported(answer: str, verified: list[dict]) -> list[str]:
-    """Return any numbers in `answer` that don't appear in any verified quote.
+    """Return any numbers in `answer` (excluding citation-tag digits) that
+    don't appear in any verified quote.
 
     This catches the most common hallucination: the LLM lifts a percentage
     from the retrieved text but pairs it with an invented label. Example
@@ -172,7 +220,8 @@ def numbers_unsupported(answer: str, verified: list[dict]) -> list[str]:
     but the label is invented. We can't catch the label invention directly,
     but we can guarantee that every number was at least seen in the evidence.
     """
-    answer_nums = set(_NUM_RE.findall(answer))
+    cleaned = _INLINE_TAG_RE.sub("", answer)
+    answer_nums = set(_NUM_RE.findall(cleaned))
     if not answer_nums:
         return []
     quote_nums = set()
@@ -183,28 +232,32 @@ def numbers_unsupported(answer: str, verified: list[dict]) -> list[str]:
 
 # --- Chain ---
 
-def build_chain(env, mode: str):
+def build_chain(env, mode: str, vector_store=None):
+    """Build the answer chain. The Streamlit frontend passes a pre-built
+    `vector_store` (created from the shared QdrantClient) to avoid the
+    local-mode single-writer lock conflict between pages."""
     if not os.environ.get("OPENAI_API_KEY"):
         sys.exit("OPENAI_API_KEY not set. Copy .env.example to .env and fill it in.")
 
     collection = env["papers_collection"] if mode == "papers" else env["appraisals_collection"]
-    client = QdrantClient(path=env["qdrant_path"])
-    if not client.collection_exists(collection):
-        hint = "`py ingest.py`" if mode == "papers" else "`py appraise.py --reindex` (after running appraise.py)"
-        sys.exit(f"Collection '{collection}' not found. Run {hint} first.")
-
-    embeddings = OpenAIEmbeddings(model=env["embed_model"])
-    vector_store = QdrantVectorStore(
-        client=client, collection_name=collection, embedding=embeddings
-    )
+    if vector_store is None:
+        client = QdrantClient(path=env["qdrant_path"])
+        if not client.collection_exists(collection):
+            hint = "`py ingest.py`" if mode == "papers" else "`py appraise.py --reindex` (after running appraise.py)"
+            sys.exit(f"Collection '{collection}' not found. Run {hint} first.")
+        embeddings = OpenAIEmbeddings(model=env["embed_model"])
+        vector_store = QdrantVectorStore(
+            client=client, collection_name=collection, embedding=embeddings
+        )
     base_retriever = vector_store.as_retriever(search_kwargs={"k": RETRIEVE_K})
 
-    llm = ChatOpenAI(model=env["llm_model"], temperature=0)
-    reranker = LLMListwiseRerank.from_llm(llm=llm, top_n=RERANK_TOP_N)
+    rerank_llm = ChatOpenAI(model=env["rerank_model"], temperature=0)
+    answer_llm = ChatOpenAI(model=env["answer_model"], temperature=0)
+    reranker = LLMListwiseRerank.from_llm(llm=rerank_llm, top_n=RERANK_TOP_N)
     retriever = ContextualCompressionRetriever(
         base_compressor=reranker, base_retriever=base_retriever
     )
-    structured_llm = llm.with_structured_output(GroundedAnswer, method="function_calling")
+    structured_llm = answer_llm.with_structured_output(GroundedAnswer, method="function_calling")
 
     sys_prompt = SYSTEM_PROMPTS[mode]
 

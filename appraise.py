@@ -104,6 +104,9 @@ def get_env():
         "appraisals_collection": os.environ.get("APPRAISALS_COLLECTION", "burns_appraisals"),
         "embed_model": os.environ.get("EMBED_MODEL", "text-embedding-3-small"),
         "llm_model": os.environ.get("LLM_MODEL", "gpt-4o-mini"),
+        # Auto-detect runs once per paper, so a stronger model is worth ~$1
+        # extra across the corpus for substantially better classification.
+        "detect_model": os.environ.get("DETECT_MODEL", "gpt-4o"),
         "runs": int(os.environ.get("APPRAISE_RUNS", "10")),
         "temperature": float(os.environ.get("APPRAISE_TEMPERATURE", "0.5")),
         "agreement_threshold": float(os.environ.get("AGREEMENT_THRESHOLD", "0.7")),
@@ -173,23 +176,43 @@ def format_context(docs: list[Document]) -> str:
 # --- Evidence verification (the traceability guarantee) ---
 
 _WS = re.compile(r"\s+")
+# Trailing or leading citation tag the LLM sometimes glues onto the quote text
+# even when told not to (e.g., "...explosive (13.8%) [hosseinpour.pdf p.5]").
+_TAG_RE = re.compile(r"\[\s*[^\[\]]*?\.(?:pdf|PDF)[^\[\]]*?\]")
+# Smart-quote / typographic-quote variants frequently introduced by PDF extraction.
+_QUOTE_MAP = str.maketrans({
+    "‘": "'", "’": "'", "‚": "'", "‛": "'",
+    "“": '"', "”": '"', "„": '"', "‟": '"',
+    "–": "-", "—": "-", "−": "-",
+    " ": " ",  # non-breaking space
+})
 
 
 def _normalize(text: str) -> str:
+    """Aggressive normalization for substring matching.
+
+    Folds whitespace, lowercases, drops citation-tag artifacts, normalizes
+    smart quotes / dashes, and removes the optional space before '%' that
+    PDF text extraction commonly inserts (e.g., '49.8 %' → '49.8%').
+    """
+    text = text.translate(_QUOTE_MAP)
+    text = _TAG_RE.sub("", text)
+    text = text.replace(" %", "%")
     return _WS.sub(" ", text.lower()).strip()
 
 
 def locate_quote(quote: str, docs: list[Document]) -> tuple[int | None, bool]:
     """Find which retrieved chunk contains the quote. Returns (page_or_None, verified).
 
-    Verified=True means the quote appears verbatim (modulo whitespace) in some
-    retrieved chunk, and the page is taken from that chunk's metadata. If the
-    quote can't be found, page is None and verified=False — flagging a possible
-    hallucination.
+    Verified=True means the quote appears verbatim (modulo whitespace,
+    smart-quotes, and trailing citation tags) in some retrieved chunk, and the
+    page is taken from that chunk's metadata. Falsy/short quotes never verify.
     """
-    if not quote.strip():
+    if not quote or len(quote.strip()) < 12:
         return None, False
     needle = _normalize(quote)
+    if not needle:
+        return None, False
     for d in docs:
         if needle in _normalize(d.page_content):
             return d.metadata.get("page"), True
@@ -218,11 +241,16 @@ def grade_domain(llm: ChatOpenAI, rubric: dict, domain: dict,
         }
 
     context = format_context(docs)
-    judgment_options = rubric["judgment_options"]
+    # Domain-level judgment_options (e.g., NOS Selection items max at 1 star)
+    # take precedence over the rubric default. Falls back to rubric-level
+    # for rubrics like RoB 2 where every domain shares the same scale.
+    judgment_options = domain.get("judgment_options", rubric["judgment_options"])
     sys_prompt = (
         f"You are an evidence appraiser applying the {rubric['name']} rubric.\n"
         f"You are judging the domain: {domain['name']}.\n\n"
-        f"Choose ONE judgment from: {judgment_options}.\n\n"
+        f"Choose ONE judgment from: {judgment_options}.\n"
+        f"You MUST pick exactly one of these labels — do not invent others "
+        f"or pick a label not in this list.\n\n"
         f"Domain criteria:\n{domain.get('criteria_summary', '')}\n\n"
         f"Signaling questions:\n" + "\n".join(f"- {q}" for q in domain["signaling_questions"]) +
         "\n\nRules:\n"
@@ -318,31 +346,130 @@ def _coerce_judgment(raw: str, options: list[str]) -> str:
 
 # --- Whole-paper appraisal ---
 
-def detect_design(llm: ChatOpenAI, vector_store: QdrantVectorStore, filename: str) -> str:
-    """Classify the paper and recommend a rubric id."""
-    docs = retrieve_for_domain(
-        vector_store, filename,
-        ["abstract objectives", "methods study design population", "randomized cohort observational"],
-        k=4,
+class StudyDesign(BaseModel):
+    """Structured classification of a paper's study design.
+
+    The LLM fills in the 5 boolean features by reading the abstract + methods
+    chunks; the recommended_rubric is then derived from those features. We ask
+    the model for the rubric *and* the features so the rationale is auditable.
+    """
+    is_review_or_meta_analysis: bool = Field(
+        description="True if this paper is itself a systematic review, meta-analysis, "
+                    "narrative review, editorial, or commentary — NOT primary research."
     )
+    has_comparison_group: bool = Field(
+        description="True if the study compares two or more groups (treated vs untreated, "
+                    "exposed vs unexposed, intervention vs control). False if it's a single "
+                    "group described over time (case series, descriptive epidemiology)."
+    )
+    randomized: bool = Field(
+        description="True if participants were randomly assigned to groups."
+    )
+    investigator_applied_intervention: bool = Field(
+        description="True if the investigators actively applied a treatment/intervention. "
+                    "False for purely observational designs (chart reviews, registry analyses, "
+                    "epidemiological surveillance)."
+    )
+    is_diagnostic_accuracy_study: bool = Field(
+        description="True if the study evaluates a diagnostic test against a reference standard. "
+                    "(QUADAS-2 isn't shipped, so these will recommend 'none'.)"
+    )
+    recommended_rubric: str = Field(
+        description="One of: rob2, robins_i, nos_cohort, case_series, none. "
+                    "Apply the mapping rules in the system prompt."
+    )
+    confidence: float = Field(
+        ge=0.0, le=1.0,
+        description="0.0-1.0. Below 0.6 means manual review is recommended."
+    )
+    rationale: str = Field(
+        description="One sentence explaining the recommendation in terms of the features above."
+    )
+
+
+_DESIGN_RETRIEVAL_QUERIES = [
+    "abstract objectives findings",
+    "methods study design population",
+    "randomized cohort observational case series",
+    "intervention treatment comparison group control",
+    "inclusion criteria sample size",
+    "data collection retrospective prospective database",
+]
+
+_DESIGN_SYSTEM_PROMPT = """You classify research papers by study design so a downstream tool can pick the right appraisal rubric.
+
+Read the excerpts and fill in EVERY boolean feature based ONLY on what the excerpts state. Then map the features to a rubric using these rules (apply in order — first match wins):
+
+1. is_review_or_meta_analysis = True       →  recommended_rubric = "none"
+2. is_diagnostic_accuracy_study = True     →  recommended_rubric = "none"  (would need QUADAS-2)
+3. randomized = True AND has_comparison_group = True AND investigator_applied_intervention = True
+                                            →  recommended_rubric = "rob2"
+4. investigator_applied_intervention = True AND has_comparison_group = True AND randomized = False
+                                            →  recommended_rubric = "robins_i"
+5. has_comparison_group = True AND investigator_applied_intervention = False
+                                            →  recommended_rubric = "nos_cohort"
+6. has_comparison_group = False             →  recommended_rubric = "case_series"
+7. None of the above                        →  recommended_rubric = "none"
+
+Important:
+- Single-arm retrospective chart reviews and database surveillance studies have has_comparison_group = False → case_series.
+- Systematic reviews/meta-analyses synthesize OTHER studies; they are NOT cohort studies themselves.
+- Confidence < 0.6 if the study type is genuinely ambiguous from the excerpts.
+- The rationale must reference the features you set (e.g., "retrospective with no comparison group → case_series")."""
+
+
+def detect_design(llm: ChatOpenAI, vector_store: QdrantVectorStore,
+                  filename: str, return_full: bool = False):
+    """Classify the paper and recommend a rubric id.
+
+    Returns the rubric id by default. Pass return_full=True to get the full
+    StudyDesign object (features + confidence + rationale) for UI display.
+    """
+    docs = retrieve_for_domain(vector_store, filename, _DESIGN_RETRIEVAL_QUERIES, k=4)
     if not docs:
-        return "unknown"
+        return StudyDesign(
+            is_review_or_meta_analysis=False, has_comparison_group=False,
+            randomized=False, investigator_applied_intervention=False,
+            is_diagnostic_accuracy_study=False,
+            recommended_rubric="unknown", confidence=0.0,
+            rationale="No chunks retrieved for this paper.",
+        ) if return_full else "unknown"
+
     context = format_context(docs)
-    prompt = (
-        "Classify the study design from these excerpts. Reply with ONE token only:\n"
-        "  rob2       -> randomized controlled trial\n"
-        "  robins_i   -> non-randomized intervention study\n"
-        "  nos_cohort -> observational cohort or case-control\n"
-        "  unknown    -> cannot determine\n\n"
-        f"Excerpts:\n{context}\n\nReply with one token."
-    )
-    resp = llm.invoke(prompt).content.strip().lower().split()[0]
-    return resp if resp in {"rob2", "robins_i", "nos_cohort"} else "unknown"
+    structured = llm.with_structured_output(StudyDesign, method="function_calling")
+    try:
+        result: StudyDesign = structured.invoke([
+            ("system", _DESIGN_SYSTEM_PROMPT),
+            ("human", f"Paper: {filename}\n\nExcerpts:\n{context}\n\nClassify."),
+        ])
+    except Exception as e:
+        result = StudyDesign(
+            is_review_or_meta_analysis=False, has_comparison_group=False,
+            randomized=False, investigator_applied_intervention=False,
+            is_diagnostic_accuracy_study=False,
+            recommended_rubric="unknown", confidence=0.0,
+            rationale=f"Classification call failed: {e}",
+        )
+    # Validate the recommended rubric against the rubrics on disk.
+    valid = {p.stem for p in RUBRICS_DIR.glob("*.json")} | {"none", "unknown"}
+    if result.recommended_rubric not in valid:
+        result.recommended_rubric = "unknown"
+    return result if return_full else result.recommended_rubric
 
 
 def grade_paper(env: dict, vector_store: QdrantVectorStore,
-                filename: str, rubric: dict) -> dict:
+                filename: str, rubric: dict,
+                progress_cb=None) -> dict:
+    """Grade one paper across all rubric domains.
+
+    progress_cb(stage, payload) is called at key milestones so the UI can stream:
+        ("paper_start", {"filename", "rubric"})
+        ("domain_start", {"domain": d, "index": i, "total": n})
+        ("domain_done",  {"domain": d, "result": ..., "elapsed": s})
+    """
     print(f"\n=== {filename} — {rubric['name']} ===")
+    if progress_cb:
+        progress_cb("paper_start", {"filename": filename, "rubric": rubric["id"]})
     runs = env["runs"]
     k = env["retrieve_k"]
     threshold = env["agreement_threshold"]
@@ -351,14 +478,23 @@ def grade_paper(env: dict, vector_store: QdrantVectorStore,
     llm = ChatOpenAI(model=env["llm_model"], temperature=env["temperature"])
 
     domain_results = []
-    for d in rubric["domains"]:
+    total = len(rubric["domains"])
+    for i, d in enumerate(rubric["domains"]):
         print(f"  [{d['id']}] {d['name']} — running {runs}x...")
+        if progress_cb:
+            progress_cb("domain_start", {"domain": d, "index": i, "total": total})
         t0 = time.time()
         result = grade_domain(llm, rubric, d, vector_store, filename, runs=runs, k=k)
         result["flagged"] = result["agreement_pct"] < threshold
         domain_results.append(result)
+        elapsed = time.time() - t0
         print(f"      → {result['final_judgment']} ({result['agreement_count']}/{runs}, "
-              f"{'FLAGGED' if result['flagged'] else 'ok'}) in {time.time()-t0:.1f}s")
+              f"{'FLAGGED' if result['flagged'] else 'ok'}) in {elapsed:.1f}s")
+        if progress_cb:
+            progress_cb("domain_done", {
+                "domain": d, "result": result, "elapsed": elapsed,
+                "index": i, "total": total,
+            })
 
     return {
         "filename": filename,
@@ -612,17 +748,19 @@ def main():
     vector_store = QdrantVectorStore(
         client=client, collection_name=env["collection"], embedding=embeddings
     )
-    detect_llm = ChatOpenAI(model=env["llm_model"], temperature=0)
+    detect_llm = ChatOpenAI(model=env["detect_model"], temperature=0)
 
     for i, paper in enumerate(target_papers, 1):
         print(f"\n[{i}/{len(target_papers)}] {paper}")
         rubric = fixed_rubric
         if rubric is None:
-            recommended = detect_design(detect_llm, vector_store, paper)
-            if recommended == "unknown":
-                print(f"  could not auto-detect a rubric; skipping. Use --rubric to force.")
+            design = detect_design(detect_llm, vector_store, paper, return_full=True)
+            recommended = design.recommended_rubric
+            print(f"  auto-detected: {recommended} (confidence {design.confidence:.2f})")
+            print(f"  rationale: {design.rationale}")
+            if recommended in {"unknown", "none"}:
+                print(f"  no shipped rubric fits this paper; skipping. Use --rubric to force.")
                 continue
-            print(f"  auto-detected: {recommended}")
             rubric = load_rubric(recommended)
         try:
             appraisal = grade_paper(env, vector_store, paper, rubric)
